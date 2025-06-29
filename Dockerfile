@@ -6,6 +6,8 @@ RUN apk update && \
 
 RUN mkdir /repos && mkdir -p /root/.cache && mkdir -p /etc/docker/
 
+RUN touch /etc/docker/daemon.json
+
 RUN sed -i 's/{}/{ "insecure-registries": ["172.22.1.5:5000"] }/' /etc/docker/daemon.json
 
 
