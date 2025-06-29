@@ -63,6 +63,7 @@ function docker_login() {
 # Función para construir y subir imagen Docker (soporta modo CI)
 function build_and_push_image() {
     local dir="$1"
+    local force_build="${2:-}"
     [ -d "$dir/.git" ] || return
     echo "Cambiando usuario directorio: $dir"
     chown -R 1000:1000 "$dir"
@@ -71,13 +72,17 @@ function build_and_push_image() {
     git fetch
     LOCAL=$(git rev-parse @)
     REMOTE=$(git rev-parse @{u})
-    if [ "$LOCAL" = "$REMOTE" ]; then
+    if [ "$LOCAL" = "$REMOTE" ] && [ "$force_build" != "force" ]; then
         echo "No hay cambios en $dir"
         cd ..
         return
     else
-        echo "Actualizaciones detectadas en $dir, actualizando..."
-        git pull
+        if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "Actualizaciones detectadas en $dir, actualizando..."
+            git pull
+        else
+            echo "Forzando build de $dir aunque no haya cambios."
+        fi
         cd ..
         chown -R 1000:1000 "$dir"
         if [ ! -f "$dir/Dockerfile" ]; then
@@ -85,7 +90,6 @@ function build_and_push_image() {
             return
         fi
         cd "$dir"
-        # Construir imagen Docker
         IMAGE_NAME="${DOCKER_REGISTRY}/$(basename $PWD)"
         TAG_LATEST="latest"
         TAG_DATE=$(date +%d%m%Y%H%M%S)
@@ -100,14 +104,19 @@ function build_and_push_image() {
 }
 
 
-# Soporte para modo CI: ./update.sh --ci [carpeta]
+# Soporte para modo CI: ./update.sh --ci [carpeta] [-f|--force]
 if [[ "${1:-}" == "--ci" ]]; then
     CI_DIR="${2:-}"
+    FORCE_ARG="${3:-}"
     if [ -z "$CI_DIR" ]; then
         echo "Debes indicar la carpeta del repo para CI."
         exit 2
     fi
-    build_and_push_image "$CI_DIR"
+    if [[ "$FORCE_ARG" == "-f" || "$FORCE_ARG" == "--force" ]]; then
+        build_and_push_image "$CI_DIR" force
+    else
+        build_and_push_image "$CI_DIR"
+    fi
     exit $?
 fi
 
