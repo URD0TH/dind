@@ -13,8 +13,12 @@ COPY .env.example /repos/.env
 
 # Configura la zona horaria a America/Santiago
 ENV TZ=America/Santiago
+ENV PGID=1000
+ENV PUID=1000
 
-RUN chmod +x /repos/update.sh && sh /repos/update.sh >> /var/log/update_repos.log 2>&1
+RUN chmod +x /repos/update.sh 
+
+RUN sh /repos/update.sh >> /var/log/update_repos.log 2>&1
 
 VOLUME ["/repos"]
 
