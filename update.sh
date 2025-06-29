@@ -143,5 +143,5 @@ fi
 if command -v service >/dev/null 2>&1; then
     service crond restart
 else
-    echo "No se pudo reiniciar el servicio crond."
+    echo "No se pudo reiniciar el servicio crond." | tee -a update.log
 fi
