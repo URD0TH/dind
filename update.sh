@@ -136,12 +136,12 @@ CRON_JOB="0 6 * * * cd $(pwd) && sh ./update.sh >> update.log 2>&1"
 CRON_EXISTS=$(crontab -l 2>/dev/null | grep -F "$CRON_JOB" || true)
 if [ -z "$CRON_EXISTS" ]; then
     (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
-    echo "Tarea programada en cron para las 6:00 AM America/Santiago."
+    echo "Tarea programada en cron para las 6:00 AM America/Santiago." | tee -a update.log
 fi
 
 # Reiniciar cron para aplicar cambios
 if command -v service >/dev/null 2>&1; then
     service crond restart
 else
-    echo "No se pudo reiniciar el servicio crond." | tee -a update.log
+    echo "No se pudo reiniciar el servicio crond."  | tee -a update.log
 fi
