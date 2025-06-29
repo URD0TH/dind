@@ -10,14 +10,20 @@ if [ -z "${BASH_VERSION:-}" ] && command -v bash >/dev/null 2>&1; then
     exec bash "$0" "$@"
 fi
 
-# Cargar variables de entorno de forma robusta
+# Cargar variables de entorno de forma robusta o solicitarlas si no existen
 if [ -f ".env" ]; then
     set -a
     . .env
     set +a
 else
-    echo "Archivo .env no encontrado."
-    exit 1
+    echo "Archivo .env no encontrado. Se solicitarán los datos para crearlo."
+    read -rp "DOCKER_USER: " DOCKER_USER
+    read -srp "DOCKER_PASSWORD: " DOCKER_PASSWORD; echo
+    read -rp "DOCKER_REGISTRY: " DOCKER_REGISTRY
+    echo -e "DOCKER_USER=$DOCKER_USER\nDOCKER_PASSWORD=$DOCKER_PASSWORD\nDOCKER_REGISTRY=$DOCKER_REGISTRY" > .env
+    set -a
+    . .env
+    set +a
 fi
 
 # Instalar dependencias (ya lo tienes)
@@ -53,11 +59,13 @@ function docker_login() {
     fi
 }
 
-# Recorrer subcarpetas
-for dir in */ ; do
-    [ -d "$dir/.git" ] || continue
-    echo "cambiando  usuario directorio: $dir"
-    chown -R 1000:1000 "$dir"  # Cambiar propietario a usuario 1000:1000 (root en Docker)
+
+# Función para construir y subir imagen Docker (soporta modo CI)
+function build_and_push_image() {
+    local dir="$1"
+    [ -d "$dir/.git" ] || return
+    echo "Cambiando usuario directorio: $dir"
+    chown -R 1000:1000 "$dir"
     cd "$dir"
     echo "Revisando $dir"
     git fetch
@@ -66,16 +74,15 @@ for dir in */ ; do
     if [ "$LOCAL" = "$REMOTE" ]; then
         echo "No hay cambios en $dir"
         cd ..
-        continue
+        return
     else
         echo "Actualizaciones detectadas en $dir, actualizando..."
         git pull
         cd ..
-        chown -R 1000:1000 "$dir"  # Cambiar propietario a usuario 1000:1000 (root en Docker)
-        # Verificar si hay un Dockerfile
+        chown -R 1000:1000 "$dir"
         if [ ! -f "$dir/Dockerfile" ]; then
             echo "No se encontró Dockerfile en $dir, saltando..."
-            continue
+            return
         fi
         cd "$dir"
         # Construir imagen Docker
@@ -86,12 +93,33 @@ for dir in */ ; do
         docker_login
         docker push "$IMAGE_NAME:$TAG_LATEST"
         docker push "$IMAGE_NAME:$TAG_DATE"
-        # Limpiar imágenes locales
         docker rmi "$IMAGE_NAME:$TAG_LATEST" "$IMAGE_NAME:$TAG_DATE"
-        # Limpiar archivos temporales de Docker
         docker system prune -f
     fi
     cd ..
+}
+
+
+# Soporte para modo CI: ./update.sh --ci [carpeta]
+if [[ "${1:-}" == "--ci" ]]; then
+    CI_DIR="${2:-}"
+    if [ -z "$CI_DIR" ]; then
+        echo "Debes indicar la carpeta del repo para CI."
+        exit 2
+    fi
+    build_and_push_image "$CI_DIR"
+    exit $?
+fi
+
+# Soporte para login manual: ./update.sh --login
+if [[ "${1:-}" == "--login" ]]; then
+    docker_login
+    exit $?
+fi
+
+# Recorrer subcarpetas normalmente
+for dir in */ ; do
+    build_and_push_image "$dir"
 done
 
 # Agregar al cron si no existe
