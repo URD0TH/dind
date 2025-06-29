@@ -4,7 +4,10 @@ FROM docker:latest
 RUN apk update && \
     apk add --no-cache git curl cronie
 
-RUN mkdir /repos && mkdir -p /root/.cache
+RUN mkdir /repos && mkdir -p /root/.cache && mkdir -p /etc/docker/
+
+RUN sed -i 's/{}/{ "insecure-registries": ["172.22.1.5:5000"] }/' /etc/docker/daemon.json
+
 
 COPY ./update.sh /repos/update.sh
 
