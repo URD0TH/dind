@@ -18,8 +18,6 @@ ENV PUID=1000
 
 RUN chmod +x /repos/update.sh 
 
-RUN sh /repos/update.sh >> /var/log/update_repos.log 2>&1
-
 VOLUME ["/repos"]
 
-CMD ["sh"]
+CMD ["sh", "/repos/update.sh"]
