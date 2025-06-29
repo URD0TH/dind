@@ -1,6 +1,6 @@
 
 #!/bin/bash
-# auto_update.sh
+# _update.sh
 # Mejoras: manejo de errores y carga robusta de variables de entorno
 set -euo pipefail
 trap 'echo "Error en la línea $LINENO"; exit 1' ERR
@@ -109,30 +109,30 @@ if [[ "${1:-}" == "--ci" ]]; then
     CI_DIR="${2:-}"
     FORCE_ARG="${3:-}"
     if [ -z "$CI_DIR" ]; then
-        echo "Debes indicar la carpeta del repo para CI."
+        echo "Debes indicar la carpeta del repo para CI." | tee -a update.log
         exit 2
     fi
     if [[ "$FORCE_ARG" == "-f" || "$FORCE_ARG" == "--force" ]]; then
-        build_and_push_image "$CI_DIR" force
+        build_and_push_image "$CI_DIR" force | tee -a update.log
     else
-        build_and_push_image "$CI_DIR"
+        build_and_push_image "$CI_DIR" | tee -a update.log
     fi
     exit $?
 fi
 
 # Soporte para login manual: ./update.sh --login
 if [[ "${1:-}" == "--login" ]]; then
-    docker_login
+    docker_login | tee -a update.log
     exit $?
 fi
 
 # Recorrer subcarpetas normalmente
 for dir in */ ; do
-    build_and_push_image "$dir"
+    build_and_push_image "$dir" | tee -a update.log
 done
 
 # Agregar al cron si no existe
-CRON_JOB="0 6 * * * cd $(pwd) && sh ./auto_update.sh >> auto_update.log 2>&1"
+CRON_JOB="0 6 * * * cd $(pwd) && sh ./update.sh >> update.log 2>&1"
 CRON_EXISTS=$(crontab -l 2>/dev/null | grep -F "$CRON_JOB" || true)
 if [ -z "$CRON_EXISTS" ]; then
     (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
