@@ -2,7 +2,7 @@
 FROM docker:latest
 
 RUN apk update && \
-    apk add --no-cache git curl cronie
+    apk add --no-cache git curl cronie gh
 
 RUN mkdir /repos && mkdir -p /root/.cache && mkdir -p /etc/docker/
 
