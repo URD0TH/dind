@@ -2,7 +2,7 @@
 FROM docker:latest
 
 RUN apk update && \
-    apk add --no-cache git curl cronie
+    apk add --no-cache git curl cronie github-cli
 
 RUN mkdir /repos && mkdir -p /root/.cache && mkdir -p /etc/docker/
 
@@ -17,9 +17,17 @@ COPY .env.example /repos/.env
 ENV TZ=America/Santiago
 ENV PGID=1000
 ENV PUID=1000
+ENV DOCKER_REGISTRY=regui.lc.bnds.click
+
 
 RUN chmod +x /repos/update.sh 
 
-VOLUME ["/repos"]
+VOLUME /var/lib/docker
+EXPOSE 2375 2376
 
-CMD ["sh", "/repos/update.sh"]
+VOLUME /repos
+WORKDIR /repos
+
+
+ENTRYPOINT ["dockerd-entrypoint.sh"]
+CMD []

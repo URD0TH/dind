@@ -2,8 +2,6 @@
 # /repos/update.sh
 set -eu
 
-trap 'echo "Error en la línea $LINENO"; exit 1' ERR
-
 # funcion que valida si esta logeado a github y si no lo esta, lo logea
 git_status() {
     if ! command -v gh >/dev/null; then
@@ -13,16 +11,10 @@ git_status() {
     echo "🔐 Verificando autenticación con GitHub CLI..."
     if ! gh auth status >/dev/null 2>&1; then
         echo "⚠️ No has iniciado sesión. Ejecuta: gh auth login"
-        git config --global credential.helper '!gh auth git-credential'
-        echo "Helper actual: $(git config --global --get credential.helper)"
-        gh auth login
         exit 1
     else
         echo "✅ Autenticación OK..."
     fi
-
-
-    exit 0
 }
 
 # Relanzar en bash si se desea (comentado porque queremos compatibilidad con sh)
@@ -110,6 +102,7 @@ for repo in /repos/*; do
         if ! git config --global --get-all safe.directory | grep -Fq "$repo"; then
             echo "📁 Marcando $repo como directorio seguro..."
             git config --global --add safe.directory "$repo"
+            
         else
             echo "✅ $repo ya está marcado como seguro."
         fi
@@ -128,9 +121,12 @@ docker_login() {
 build_and_push_image() {
     dir="$1"
     force="${2:-}"
+    echo "DEBUG: Inside build_and_push_image for $dir"
     git_status
+    echo "DEBUG: After git_status for $dir"
 
     if [ ! -d "$dir/.git" ]; then
+        echo "DEBUG: Not a git repository: $dir"
         return
     fi
 
@@ -199,9 +195,12 @@ if [ "${1:-}" = "--login" ]; then
 fi
 
 # Recorrer subcarpetas y construir imágenes
+echo "DEBUG: About to start the main loop."
 for dir in */; do
+    echo "DEBUG: Processing directory: $dir"
     build_and_push_image "$dir" | tee -a update.log
 done
+echo "DEBUG: Finished the main loop."
 
 # Agregar cron si no existe
 CRON_JOB="0 6 * * * cd $(pwd) && sh ./update.sh >> update.log 2>&1"
@@ -211,28 +210,12 @@ fi
 
 # Reiniciar crond si es posible
 if command -v crond >/dev/null 2>&1; then
-    pkill crond && /usr/sbin/crond
+    if [ -f /var/run/crond.pid ]; then
+        rm -f /var/run/crond.pid
+    fi
+    pkill crond || true
+    sleep 1
+    /usr/sbin/crond
 else
     echo "⚠️ No se pudo reiniciar crond (comando no disponible)."
 fi
-
-# funcion que valida si esta logeado a github y si no lo esta, lo logea
-git_status() {
-    if ! command -v gh >/dev/null; then
-        echo "❌ GitHub CLI (gh) no está instalado."
-        exit 1
-    fi
-    echo "🔐 Verificando autenticación con GitHub CLI..."
-    if ! gh auth status >/dev/null 2>&1; then
-        echo "⚠️ No has iniciado sesión. Ejecuta: gh auth login"
-        git config --global credential.helper '!gh auth git-credential'
-        echo "Helper actual: $(git config --global --get credential.helper)"
-        gh auth login
-        exit 1
-    else
-        echo "✅ Autenticación OK..."
-    fi
-
-
-    exit 0
-}
