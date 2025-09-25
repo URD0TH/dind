@@ -210,10 +210,10 @@ if ! crontab -l 2>/dev/null | grep -F "$CRON_JOB" >/dev/null; then
 fi
 
 # Reiniciar crond si es posible
-if command -v service >/dev/null 2>&1; then
-    service crond restart
+if command -v crond >/dev/null 2>&1; then
+    pkill crond && /usr/sbin/crond
 else
-    echo "⚠️ No se pudo reiniciar crond (service no disponible)."
+    echo "⚠️ No se pudo reiniciar crond (comando no disponible)."
 fi
 
 # funcion que valida si esta logeado a github y si no lo esta, lo logea
